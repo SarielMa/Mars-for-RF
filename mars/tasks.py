@@ -381,7 +381,6 @@ class sfixgen(object):
         while cc < ncals:
             # given a suffix, append one more method to the backen of it
             ctask=callmtask(fix,self.cutm,self.f1,self.c,self.f2,self.h)
-            
             sq=ctask.cptseqc()
             if sq==None:
                 return None
@@ -390,13 +389,23 @@ class sfixgen(object):
             cc+=1
         return fix
     
-    def nextsfix_label(self, method_labels):
+    def nextsfix_label_random_input(self, method_labels):
         fix=suffix(self.pfix)
         
         for label in method_labels:
             # given a suffix, append one more method to the backen of it
             ctask=callmtask(fix,self.cutm,self.f1,self.c,self.f2,self.h)
             sq=ctask.cptseqc_label(label)
+            fix = sq
+        return fix
+    
+    def nextsfix_label(self, method_labels):
+        fix=suffix(self.pfix)
+        
+        for label, if_pre in method_labels:
+            # given a suffix, append one more method to the backen of it
+            ctask=callmtask(fix,self.cutm,self.f1,self.c,self.f2,self.h)
+            sq=ctask.cptseqc_label(label, if_pre)
             fix = sq
         return fix
 
@@ -432,7 +441,7 @@ class callmtask(object):
         ec.appendcall(cm,rec,args,retv)
         return ec 
     
-    def cptseqc_label(self, label):
+    def cptseqc_label_random_input(self, label):
         # a sufix with length 1, with specific method
         seq=self.sfix.copy()
         cm=self.cutm[label]
@@ -440,7 +449,7 @@ class callmtask(object):
         args=[]
         for tp in cm.paramtypes:
             ptask=getptask(seq,tp,self.fn1,self.cut,self.fn2,self.hcls)
-            s=ptask.cptseqc()
+            s=ptask.cptseqc()# a new sequence with one more method call
             if s==None:
                 return None
             else:
@@ -457,30 +466,63 @@ class callmtask(object):
         ec.appendcall(cm,rec,args,retv)
         return ec
     
+    def cptseqc_label(self, label, if_pre):
+        # a sufix with length 1, with specific method
+        seq=self.sfix.copy()
+        # select the method in the class
+        cm=self.cutm[label]
+        # 
+        rec=seq.pfix.cutv
+        args=[]
+        for tp in cm.paramtypes:
+            ptask=getptask(seq,tp,self.fn1,self.cut,self.fn2,self.hcls,if_pre)
+            s=ptask.cptseqc()# a new sequence with one more method call
+            if s==None:
+                return None
+            else:
+                seq=s
+                args.append(ptask.param)
+        retv=cm.returntype
+        if retv == None:
+            # no reture value
+            retv= None
+        else:
+            retv= obj()
+        
+        ec=seq.copy()
+        # add one more method to suffix
+        ec.appendcall(cm,rec,args,retv)
+        return ec
+    
 class getptask(object):# be tested
-    def __init__(self,pfix,tp,fn1,cut,fn2,cls):#this pfix is actually a seq, more than a just pfix
+    def __init__(self,pfix,tp,fn1,cut,fn2,cls, if_pre):#this pfix is actually a seq, more than a just pfix
         self.mrc=50
         self.crc=0
         self.pfix=pfix
-        self.tp=tp
+        self.tp=tp # type of parameters
         self.fn1=fn1
         self.fn2=fn2
         self.cut=cut
         self.cls=cls
         self.param=None
         self.maxtry=10
-        
+        self.if_pre = if_pre
     def findv(self,tp,seq,nullallowed):
         na=nullallowed
         if self.crc>self.mrc:
             return None
         self.crc+=1
-        if seq.t2v.keys().count(tp)>0:
-            vars=seq.t2v[tp]
-            sv=vars[random.randint(0,len(vars)-1)]
-            print(tp+" already exixt in "+str(seq.t2v.keys())+str(sv))
-            return sv
-        else:#there is no such type in the seq
+        if self.if_pre:
+            # there is return values of thus type, tp
+            # and if the user want it to use previous reture value
+            for pretype in seq.t2v.keys():
+                if pretype in tp:
+                    # say int in const int &          
+                    vars=seq.t2v[pretype]
+                    sv=vars[-1]
+                    print(tp+" already exixt in "+str(seq.t2v.keys())+str(sv))
+                    return sv
+        else:#there is no such type in the seq, generate it
             if ppder().isptype(tp)==True:
                 return ppder().getv(tp)
             else:
@@ -516,6 +558,47 @@ class getptask(object):# be tested
             return seq
         else:
             return None
+    def findv_random(self,tp,seq,nullallowed):
+        na=nullallowed
+        if self.crc>self.mrc:
+            return None
+        self.crc+=1
+        if seq.t2v.keys().count(tp)>0:
+            # there is return values of thus type, tp, randomly choose one
+            vars=seq.t2v[tp]
+            sv=vars[random.randint(0,len(vars)-1)]
+            print(tp+" already exixt in "+str(seq.t2v.keys())+str(sv))
+            return sv
+        else:#there is no such type in the seq, generate it
+            if ppder().isptype(tp)==True:
+                return ppder().getv(tp)
+            else:
+                atom=mtype(self.fn1,self.cut,self.fn2,self.cls).atmgivingtype(tp)
+                #print(atom.name)
+                if atom==None:
+                    return None
+                if atom.isstatic==True or atom.isconstructor==True:
+                    rec=None
+                else:
+                    rec=self.findv(atom.cls,seq,False)
+                    if rec==None:
+                        return None
+                    else:
+                        if rec==seq.cutv and atom.cls!=cut:
+                            return None
+                args=[]
+                for t in atom.paramtypes:
+                    arg=self.findv(t,seq,False)
+                    if arg==None:
+                        return None
+                    else:
+                        args.append(arg)
+                retval=obj()
+                seq.appendcall(atom,rec,args,retval)
+                #print(seq.calls[0].tos())
+                return retval
+
+
             
 class instCutTask(object):
     def __init__(self,filename1,ccut,filename2,hclss):

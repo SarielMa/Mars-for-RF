@@ -8,20 +8,20 @@ Queue var0 = Queue();
 void *thrd1(void* arg)
 {
     //Queue * var0=(Queue*)arg;
-    int var1 = var0.dequeue();
-    var0.enqueue(57);
-    int var2 = var0.getlength();
-    var0.method(var1,'d',var1);
+    int var1 = var0.getlength();
+    var0.enqueue(var1);
+    int var2 = var0.dequeue();
+    var0.enqueue(28);
 
     pthread_exit((void*)1);
 }
 void *thrd2(void* arg)
 {
     //Queue * var0=(Queue*)arg;
-    var0.enqueue(89);
     int var3 = var0.dequeue();
-    var0.enqueue(75);
+    var0.enqueue(var3);
     int var4 = var0.dequeue();
+    var0.enqueue(var4);
 
     pthread_exit((void*)2);
 }

@@ -12,12 +12,12 @@ class Cppgen(object):
         self.__sfix1=sfix1
         self.__sfix2=sfix2
         self.rec=s2rec
-    	import os
-    	ad=os.getcwd()
-    	os.chdir(ad+'/tests')
+        import os
+        ad=os.getcwd()
+        os.chdir(ad+'/tests')
         os.system('rm -rf *.cpp')
         class_file=open('test_'+self.name+'_gen.cpp','w')
-    	os.chdir('..')
+        os.chdir('..')
         lines=[]
         #template
         tmp_f=open('testskeleton.cpp','r')
